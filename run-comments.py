@@ -1,0 +1,96 @@
+import time
+import praw
+import prawcore
+import requests
+import logging
+import re
+import os
+import datetime
+import gc
+
+
+import Config
+
+reddit = praw.Reddit(client_id=Config.cid,
+                     client_secret=Config.secret,
+                     password=Config.password,
+                     user_agent=Config.agent,
+                     username=Config.user)
+subreddit = reddit.subreddit(Config.subreddit)
+
+logging.basicConfig(level=logging.INFO,
+                    format='%(asctime)s %(name)-12s %(levelname)-8s %(message)s',
+                    datefmt='%m-%d %H:%M',
+                    filename=Config.apppath+'report.log',
+                    filemode='a')
+
+console = logging.StreamHandler()
+console.setLevel(logging.INFO)
+formatter = logging.Formatter('%(name)-12s: %(levelname)-8s %(message)s')
+console.setFormatter(formatter)
+logging.getLogger('').addHandler(console)
+os.environ['TZ'] = 'America/Los_Angeles'
+
+f = open(Config.apppath+"submissionids.txt","a+")
+f.close()
+f = open(Config.apppath+"commentids.txt","a+")
+f.close()
+
+
+def submissionID(postid):
+    f = open(Config.apppath+"submissionids.txt","a+")
+    f.write(postid + "\n")
+    f.close()
+
+def commentID(postid):
+    f = open(Config.apppath+"commentids.txt","a+")
+    f.write(postid + "\n")
+    f.close()
+
+def getdomain( url ):
+    match1 = re.search("(?:https?:\/\/)?(?:www\.)?([\w\-\.]+)", url)
+    if match1:
+      return match1.group(1)
+    return None
+
+def CheckWhite(text):
+  if '#wiki_4._unauthorized_resellers' in text:
+    return None
+  return True
+
+def check_comment(comment):
+#    commentID(comment.id)
+    # comment.body
+    body = comment.body.lower()
+    if 'r/gamedeals' in body and CheckWhite(body):
+      author = comment.author.name.lower()
+      if author == "automoderator":
+        return
+      sub = comment.submission.subreddit.display_name.lower()
+      if sub == "gamedeals":
+        return
+      if sub == "gamedealsmeta":
+        return
+      data = { "text": 'https://reddit.com/r/' + comment.submission.subreddit.display_name  + '/comments/' + comment.submission.id + '/-/' + comment.id  + ' `r/gamedeals` mention' }
+      url = Config.Slack
+      r = requests.post(url, json=data)
+      logging.info( 'https://reddit.com/r/' + comment.submission.subreddit.display_name  + '/comments/' + comment.submission.id + '/-/' + comment.id  + ' `r/gamedeals` mention' )
+
+
+
+
+
+while True:
+  try:
+    for cmt in subreddit.stream.comments():
+        if cmt is None:
+            break
+        check_comment(cmt)
+
+  except (prawcore.exceptions.RequestException, prawcore.exceptions.ResponseException):
+        logging.info("Error connecting to reddit servers. Retrying in 1 minute...")
+        time.sleep(60)
+
+  except praw.exceptions.APIException:
+        logging.info("Rate limited, waiting 5 seconds")
+        time.sleep(5)

@@ -1,0 +1,13 @@
+import os
+
+cid = ''
+secret = ''
+user = ''
+password = ''
+subreddit = ''
+
+apppath = os.path.dirname(os.path.realpath(__file__)) + "/"
+
+agent = 'python:(MentionBot):(0.1) (by (dgc1980))'
+
+Slack = 'https://hooks.slack.com/services/XXXXXXXXXXXXXXXXXXXXXX'
